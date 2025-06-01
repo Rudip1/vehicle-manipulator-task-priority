@@ -71,8 +71,6 @@ source devel/setup.bash
 # Launch manipulator arm only (no base)
 roslaunch hands_on_intervention manipulator_hoi.launch
 
-# Run end-effector position task (individual task testing)
-roslaunch hands_on_intervention ee_pose.launch
 
 # Run full pick-and-place task using dead reckoning
 roslaunch hands_on_intervention deadreckoning_hoi.launch
