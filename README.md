@@ -35,6 +35,13 @@ This project presents the design and implementation of a task-priority-based kin
 - Simulation and testing using:
   - [Stonefish Simulator](https://github.com/patrykcieslak/stonefish)  
   - [Stonefish ROS Bridge](https://github.com/patrykcieslak/stonefish_ros)
+  
+## Demo Video
+
+See inside media folder or click the link below
+
+Drive link  
+🔗 [Project Demonstration Video](https://drive.google.com/drive/folders/1aWwxXO2Fg-kpDT9R32qac7A4vbF0WJ9x?usp=sharing)
 
 ---
 
@@ -43,7 +50,6 @@ This project presents the design and implementation of a task-priority-based kin
 Ensure your system is running **Ubuntu 20.04** with **ROS Noetic** installed and sourced.
 
 To install dependencies, clone, build, and launch the project:
-
 ```bash
 # Step 1: Navigate to your catkin workspace
 cd ~/catkin_ws/src
@@ -75,11 +81,6 @@ roslaunch hands_on_intervention deadreckoning_hoi.launch
 roslaunch hands_on_intervention aruco_hoi.launch
 
 
----
 
-## Demo Video
-#see inside media folder or click the link below
-Watch the system in action here:  
-🔗 [Project Demonstration Video](https://your-video-link.com)
 
 
