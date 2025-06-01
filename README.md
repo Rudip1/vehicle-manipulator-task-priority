@@ -74,3 +74,12 @@ roslaunch hands_on_intervention deadreckoning_hoi.launch
 # Run full pick-and-place task using ArUco marker detection
 roslaunch hands_on_intervention aruco_hoi.launch
 
+
+---
+
+## Demo Video
+#see inside media folder or click the link below
+Watch the system in action here:  
+🔗 [Project Demonstration Video](https://your-video-link.com)
+
+
