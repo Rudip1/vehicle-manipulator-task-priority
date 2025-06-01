@@ -1,0 +1,9 @@
+<launch>
+    <param name="~frame_id" type="string" value="world_ned" />
+
+    <include file="$(find hands_on_intervention)/launch/turtlebot_hoi.launch" />
+    <node pkg="hands_on_intervention" type="Wheel_vel.py" name="To_wheel_vel_converter" output="screen"/>
+    
+    <node pkg="hands_on_intervention" type="TP_node.py" name="TP" output="screen"/>
+    <node pkg="hands_on_intervention" type="BT_node.py" name="BT" output="screen"/> 
+</launch>

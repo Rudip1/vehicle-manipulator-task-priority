@@ -1,0 +1,16 @@
+<launch>
+    <param name="~frame_id" type="string" value="world_ned" />
+
+     <include file="$(find turtlebot_simulation)/launch/turtlebot_hoi.launch" /> 
+       <!-- <include file="$(find turtlebot_simulation)/launch/turtlebot_hoi_circuit1.launch" /> -->
+    
+    <node pkg="hands_on_intervention" type="Wheel_vel.py" name="To_wheel_vel_converter" output="screen"/>
+    <node pkg="hands_on_intervention" type="TP_node.py" name="TP" output="screen"/>
+    <node pkg="hands_on_intervention" type="BT_node.py" name="BT" output="screen"/>
+
+    <!-- rqt_robot_steering for manual base control -->
+    <node pkg="rqt_robot_steering" type="rqt_robot_steering" name="rqt_robot_steering" output="screen">
+        <param name="topic" value="/turtlebot/kobuki/commands/velocity"/>
+    </node>
+</launch>
+

@@ -1,0 +1,13 @@
+
+<launch>
+    <param name="~frame_id" type="string" value="world_ned" />
+    <include file="$(find hands_on_intervention)/launch/turtlebot_hoi.launch" />
+    
+    <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find hands_on_intervention)/config/hoi_base.rviz"/> -->
+    <node pkg="hands_on_intervention" type="Wheel_vel.py" name="To_wheel_vel_converter" output="screen"/>
+    <node pkg="hands_on_intervention" type="base_tp_simulation.py" name="TP_node" output="screen"/>
+    <node pkg="hands_on_intervention" type="behaviour_tree_simu.py" name="BT_node" output="screen"/>
+    <node pkg="hands_on_intervention" type="aruco_node_simulation.py" name="Aruco_node" output="screen"/>
+     
+</launch>
+

@@ -1,0 +1,41 @@
+<launch>
+    <!-- Configurable arguments -->
+    <arg name="robot_name" default="swiftpro"/>
+    <arg name="simulation_data" default="$(find turtlebot_simulation)/resources"/>
+    <arg name="scenario_description" default="$(find turtlebot_simulation)/scenarios/swiftpro_basic.scn"/>
+    <arg name="simulation_rate" default="1000.0"/>
+    <arg name="graphics_resolution" default="1200 800"/>
+    <arg name="graphics_quality" default="high"/>
+
+ 
+    <!-- Namespace with robot name -->
+    <group ns="$(arg robot_name)">
+        <!-- Run Simulator -->
+        <node name="stonefish_simulator" pkg="stonefish_ros" type="parsed_simulator" 
+            args="$(arg simulation_data) $(arg scenario_description) $(arg simulation_rate) $(arg graphics_resolution) $(arg graphics_quality)" output="screen">
+            <param name="robot_name" value="$(arg robot_name)"/>
+            <remap from="swiftpro/joint_states" to="joint_states"/>
+        </node>
+
+        <!-- Load ROS Control -->
+        <rosparam command="load" file="$(find turtlebot_simulation)/config/swiftpro.yaml" />
+	    <node name="controller_spawner" pkg="controller_manager" type="spawner" output="screen" 
+				args="joint_state_controller joint_velocity_controller" />
+
+        <!-- Load robot description -->
+        <param name="robot_description" command="$(find xacro)/xacro '$(find swiftpro_description)/urdf/swiftpro_standalone.urdf.xacro'" />
+		<node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+        <node name="swiftpro_rviz_node" pkg="swiftpro_description" type="swiftpro_rviz_node">
+            <param name="namespace" value="$(arg robot_name)"/>
+            <remap from="swiftpro_rviz_node/joint_states" to="joint_states"/>
+        </node>
+
+    </group>
+
+    <!-- RVIZ -->
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find hands_on_intervention)/config/manipulator.rviz"/>
+        <node pkg = "hands_on_intervention" type= "main_node.py" name="Kinematics" output="screen"/>
+        <node pkg = "hands_on_intervention" type= "main_node.py" name="task" output="screen"/>
+
+
+</launch>
