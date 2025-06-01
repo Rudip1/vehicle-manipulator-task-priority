@@ -6,7 +6,7 @@ This repository contains the complete source code, simulation files, project rep
 
 ### Members
 1. [Pravin Oli](mailto:pravin.oli.08@gmail.com)  
-2. Gebrecherkos G.
+2. Gebrecherkos G.(mailto:chereg2016@gmail.com)  
 
 *Master’s Program in Intelligent Field Robotic Systems (IFRoS)*  
 *University of Girona*
@@ -57,7 +57,7 @@ git clone https://github.com/your-username/hands_on_intervention.git
 
 # Step 4: Build and source the workspace
 cd ~/catkin_ws
-catkin_make
+catkin build
 source devel/setup.bash
 
 # Step 5: Run the system
