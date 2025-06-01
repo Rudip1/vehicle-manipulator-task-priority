@@ -59,7 +59,7 @@ git clone https://github.com/patrykcieslak/stonefish.git
 git clone https://github.com/patrykcieslak/stonefish_ros.git
 
 # Step 3: Clone this project
-git clone https://github.com/your-username/hands_on_intervention.git
+git clone https://github.com/Rudip1/hands_on_intervention.git
 
 # Step 4: Build and source the workspace
 cd ~/catkin_ws
