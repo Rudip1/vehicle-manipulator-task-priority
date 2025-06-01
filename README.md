@@ -6,7 +6,7 @@ This repository contains the complete source code, simulation files, project rep
 
 ### Members
 1. [Pravin Oli](mailto:pravin.oli.08@gmail.com)  
-2. Gebrecherkos G.(mailto:chereg2016@gmail.com)  
+2. [Gebrecherkos G.](mailto:chereg2016@gmail.com)  
 
 *Master’s Program in Intelligent Field Robotic Systems (IFRoS)*  
 *University of Girona*
