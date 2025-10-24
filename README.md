@@ -50,7 +50,7 @@ Drive link
 See inside media folder or click the link below
 
 Drive link  
-🔗 [Project Demonstration Video](https://drive.google.com/drive/folders/1aWwxXO2Fg-kpDT9R32qac7A4vbF0WJ9x?usp=sharing)
+🔗 [Project Demonstration Video](https://drive.google.com/drive/folders/1T0asugljAz9yj8eDlCjKNhFYLX78MgoW?usp=drive_link)
 
 ---
 
