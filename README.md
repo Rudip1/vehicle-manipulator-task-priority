@@ -36,6 +36,15 @@ This project presents the design and implementation of a task-priority-based kin
   - [Stonefish Simulator](https://github.com/patrykcieslak/stonefish)  
   - [Stonefish ROS Bridge](https://github.com/patrykcieslak/stonefish_ros)
   
+## Paper
+
+See inside media folder or click the link below
+
+Drive link  
+🔗 [Project_Paper](https://drive.google.com/file/d/1Nm_BPm6dtv6EvW1o-sH0YWVQpdoDJyql/view?usp=sharing)
+
+---
+
 ## Demo Video
 
 See inside media folder or click the link below
