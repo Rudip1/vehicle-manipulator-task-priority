@@ -7,7 +7,7 @@ on:
 jobs:
   catkin-package:
     name: colcon build (ROS Noetic)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: ros:noetic-ros-base
     defaults:
       run:
@@ -41,7 +41,7 @@ jobs:
 
   python:
     name: pip install + import (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ["3.10", "3.12"]
