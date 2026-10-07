@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""ROS node: task-priority controller for the mobile manipulator with dead-reckoning localisation."""
 
 import rospy
 import time
@@ -15,19 +16,29 @@ from geometry_msgs.msg import PoseStamped, Twist
 from sensor_msgs.msg import Imu
 from std_srvs.srv import SetBool, SetBoolResponse
 from std_msgs.msg import String
-from hoi.msg import CustomPoseStamped
+from mobile_manipulator_tp.msg import CustomPoseStamped
 import tf
 
 from nav_msgs.msg import Odometry
 from utils.tasks3D import *
 from utils.common_func import *
-from utils.lab6_robotics import *
 # from utils.task_test import *   
 import sys
 import copy
 import matplotlib.pyplot as plt
 
 class manipulator():
+    """
+    Task-priority controller for the mobile manipulator (dead-reckoning variant).
+
+    Estimates the base pose from wheel odometry and IMU heading, receives goals
+    from the behaviour tree on `/end_effector_pose` and publishes base and arm
+    velocity commands. Joint limits of the four arm joints are always the
+    highest-priority tasks.
+
+    Arguments:
+    theta, theta2, theta3, theta4 (double): initial arm joint angles (rad)
+    """
     def __init__(self, theta, theta2, theta3, theta4):
         
          #### Base DH parameters ####
@@ -162,15 +173,21 @@ class manipulator():
  
  
     def create_position_3d_task(self,position, joint):
+            """Return a Position3D task named "End-effector position" for the given position."""
             return Position3D("End-effector position", np.array(position).reshape(3, 1), joint)
   
     def create_Configuration_3d_task(self,position, joint):
+            """Return a Configuration3D task named "Configuration" for a 6-element configuration."""
             return Configuration3D("Configuration", np.array(position).reshape(6, 1), joint)
 
     def Base_task(self,position):
+            """Return a Base task for a base pose [x, y, z, yaw]."""
             return Base("Base", np.array(position).reshape(4, 1))
     
     def JointState_callback(self,data):
+        """Collect wheel and arm joint states; once both wheels and the arm are received,
+        update the model, run dead-reckoning prediction, publish odometry and run one
+        task-priority control step."""
        
         if data.name[0] == 'turtlebot/kobuki/wheel_left_joint':
             self.left_wheel_vel = data.velocity[0]
@@ -217,10 +234,12 @@ class manipulator():
     ###########################
     
     def wrap_angle(self, angle):
+        """Wrap an angle (rad) to the interval [-pi, pi)."""
       
         return (angle + ( 2.0 * np.pi * np.floor( ( np.pi - angle ) / ( 2.0 * np.pi ) ) ) )
     # Prediction ! 
     def prediction(self, dt):
+        """Dead-reckoning prediction of the base pose xk = [x, y, yaw] and covariance Pk over dt seconds."""
     
         # Calculate Jacobians with respect to state vector
         Ak= np.array([[1, 0, -math.sin(float(self.xk[2]))*(self.v)*dt],
@@ -243,6 +262,7 @@ class manipulator():
     
     ### Odom Publisher   
     def odom_path_pub(self):
+        """Publish the estimated base pose as Odometry and as a world_ned -> base_footprint tf."""
 
         # Transform theta from euler to quaternion
         q = quaternion_from_euler(0, 0, float(wrap_angle(self.xk[2])))
@@ -278,6 +298,7 @@ class manipulator():
         self.tf_br.sendTransform((float(self.xk[0]), float(self.xk[1]), 0.0), q, rospy.Time.now(), odom.child_frame_id, odom.header.frame_id)
     
     def imu_callback(self, msg):
+        """Store the IMU yaw and apply a heading update."""
         # print("IMU callback")   
         orientation = msg.orientation
         orientation_list = [orientation.x, orientation.y, orientation.z, orientation.w]
@@ -290,11 +311,13 @@ class manipulator():
         self.heading_update()
         
     def base_orientation_limit(self, angle):
+        """Clip an angle to [-pi/4, pi/4]."""
         angle = np.clip(angle, -np.pi/4, np.pi/4)   
         return angle
     
 
     def heading_update(self):
+        """Kalman update of the base heading using the IMU yaw as a compass measurement."""
         # print("Heading update")  
         # print("xk", self.xk) 
         # Create a row vector of zeros of size 1 x 3*num_poses
@@ -325,6 +348,10 @@ class manipulator():
         self.Pk = (I - K @ Hk) @ self.Pk @ (I - K @ Hk).T
 
     def goal_callback(self,msg_parent):
+        """Convert a CustomPoseStamped goal into a task and append it after the joint-limit tasks.
+
+        Task ids: 2 = base pose, 11 = end-effector position, 3 = joint position,
+        4 = end-effector configuration. Each id also sets its own solution weight matrix."""
         self.id = msg_parent.id
         print("Task id", self.id)       
         msg = msg_parent.pose
@@ -394,10 +421,12 @@ class manipulator():
         self.tasks2 = [self.joint_limit_tasks + [task]]
  
     def task_callback(self,msg):
+        """Advance the task-set index (triggered by `/move_base_simple/goal`)."""
         self.i = self.i+1
         
     #Send command_velocity to the mobile base manipulator    
     def send_vel(self, q): # q = [w, v, q1_dot, q2_dot, q3_dot, q4_dot] 
+        """Publish q = [w, v, dq1, dq2, dq3, dq4]: base Twist on `/cmd_vel` and arm joint velocities."""
         p = Float64MultiArray()
         p.data = [float(q[2]), float(q[3]), float(q[4]), float(q[5])]
         base_vel = Twist()
@@ -411,6 +440,12 @@ class manipulator():
         self.robot_base_vel_pub.publish(base_vel)  # Publish base velocity
                          
     def TP(self):
+        """Run one recursive task-priority step over the active task set.
+
+        Active tasks contribute weighted DLS velocities projected into the null space of
+        higher-priority tasks; the result is scaled to `vel_max_limit` (0.2) and sent to
+        the robot. "success" is published on `/task_feedback` when the base or
+        end-effector task error norm drops below 0.03."""
         
         pose_stamp = PoseStamped()
         pose_stamp.header.frame_id = "world_ned"
@@ -527,6 +562,7 @@ class manipulator():
             
     # Current position of the robot from the odometry
     def get_odom(self, odom):
+        """Store the base pose [x, y, z, yaw] from odometry and refresh the base transformation."""
         _, _, yaw = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x, 
                                                               odom.pose.pose.orientation.y,
                                                               odom.pose.pose.orientation.z,
@@ -536,12 +572,15 @@ class manipulator():
         self.B_Transform()
                 
     def goal_reached_callback(self, msg):
+        """Unused placeholder."""
         return
     # msg, bool
     #   self.goal_reached = msg.data 
  
     # Forward kinematics   
     def kinematics(self): 
+        """Return the 4x4 world-frame end-effector transformation
+        (world -> base -> arm base -> end effector)."""
         
         # Geometric end-effector position with respect to the manipulator base 
         self.x = (0.0132 - 0.142 * np.sin(self.theta2)  + 0.1588 * np.cos(self.theta3)  + 0.0565) * np.cos(self.theta)
@@ -573,6 +612,7 @@ class manipulator():
         return self.T
     
     def B_Transform(self):
+        """Return the DH transformation chain of the base (2-DOF: rotation + translation) in the world frame."""
         self.T_WORLD_BASE = np.array([
                                 [math.cos(self.current_pose[3]) , -math.sin(self.current_pose[3]), 0, self.current_pose[0]],
                                 [math.sin(self.current_pose[3]), math.cos(self.current_pose[3]), 0, self.current_pose[1]],
@@ -585,6 +625,7 @@ class manipulator():
         return self.TB
     
     def Jacobian_B(self):
+        """Return the 6x2 Jacobian of the base DOFs with respect to the end-effector position."""
             
         Tran= self.kinematics()
         
@@ -597,6 +638,7 @@ class manipulator():
             
       
     def Jacobian(self):
+        """Return the 6x6 system Jacobian [base (2 columns) | arm (4 columns)] in the world frame."""
         
         # World_EE_Transformation Jacobian     
         # partial derivative of x, y, z with respect to q1
@@ -639,6 +681,7 @@ class manipulator():
        
      # Scale the joint velocities to ensure that the maximum velocity is not exceeded  
     def vel_limit(self, dq, dq_max):
+        """Scale dq uniformly so that no component exceeds dq_max in magnitude."""
         # Calculate the absolute ratio of each velocity to its maximum limit
         ratios = np.abs(dq / dq_max)
 
@@ -655,6 +698,7 @@ class manipulator():
     
     # Update the manipulator joint angles
     def update(self, theta, theta2, theta3, theta4):
+        """Recompute kinematics and Jacobian, then store the new arm joint angles in q."""
         
         self.kinematics()
         self.Jacobian()
@@ -666,6 +710,7 @@ class manipulator():
         self.q = [self.base_angle, 0, self.theta, self.theta2, self.theta3, self.theta4]
         
     def get_base_jacobian(self):
+        """Return the 4x6 base-task Jacobian (rows x, y, z, yaw of the base Jacobian, zero arm columns)."""
         
         jacob = self.Jacobian_B()
         jacob_1 = jacob[:3,:]
@@ -680,48 +725,48 @@ class manipulator():
     
      
     def get_base_position(self): # x,y,z,theta
+        """Return the base pose [x, y, z, yaw]."""
         return self.current_pose
 
-    '''
-        Method that returns the end-effector Jacobian.
-    '''
     def getEEJacobian(self, link):
+        """Return column `link` of the system Jacobian."""
         return self.Jacobian()[:, link] 
     
     def getJacobian(self):
+        """Return the most recently computed system Jacobian."""
         return self.J
-    '''
-        Method that returns the end-effector transformation.
-    '''
     def getEETransform(self):
+        """Return the end-effector position in the world frame."""
         return self.kinematics()[:3,3]
     
     def getEEOrientation(self):
+        """Return the end-effector yaw in the world frame."""
         return np.arctan2(self.kinematics()[1,0],self.kinematics()[0,0])
     
     def get_link_Jacobian(self, link):
+        """Return the full 6x6 system Jacobian (the `link` argument is ignored)."""
         return self.Jacobian() #[:, link]
 
-    '''
-        Method that returns the orientation jacobian Jacobian.
-    '''
     def getOrientationJacobian(self, link):
+        """Return the yaw row of the system Jacobian."""
         return self.get_link_Jacobian(link)[5, :] # Orientation Jacobian
     
    
     def get_link_Transform(self,joint=6):
+            """Return the end-effector transformation (the `joint` argument is ignored)."""
             return self.kinematics()
-    '''
-        Method that returns number of DOF of the manipulator.
-    '''
     def getDOF(self):
+        """Return the number of degrees of freedom (2 base + 4 arm)."""
         return self.dof
     
     
     def getJointPos(self, joint):
+        """Return generalised coordinate `joint` of q = [base yaw, 0, q1, q2, q3, q4]."""
         return self.q[joint]
                                      
     def DLS(self, A, damping, weights):
+        """Return the weighted damped least-squares inverse
+        W^-1 A^T (A W^-1 A^T + damping^2 I)^-1."""
                 
         A_TA = (A @ np.linalg.inv(weights)) @ A.T
         I = np.identity(A_TA.shape[0])
@@ -732,6 +777,7 @@ class manipulator():
 
     # Desired position of the end-effector 
     def goal_check_marker(self,g):
+        """Publish a sphere marker at goal position g."""
         
         # print("goal marker")
         marker = Marker()

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Behaviour tree for pick and place with predefined goals (dead-reckoning
+localisation)."""
 
 import py_trees
 import rospy
@@ -11,7 +13,7 @@ from py_trees.composites import Sequence , Parallel , Selector
 from py_trees import logging as log_tree 
 from py_trees.decorators import Inverter , Retry , Timeout
 from geometry_msgs.msg import PoseStamped
-from hoi.msg import CustomPoseStamped 
+from mobile_manipulator_tp.msg import CustomPoseStamped 
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String 
 from std_srvs.srv import SetBool
@@ -21,6 +23,15 @@ import numpy as np
 
 
 class MoveToP1(Behaviour):
+    """
+    Behaviour that sends the current blackboard goal to the task-priority node.
+
+    Goals are rows [x, y, z, roll, pitch, yaw, task_id] in `world_ned`
+    (task_id 2 = base pose, 3 = joint position, 11 = end-effector position,
+    4 = end-effector configuration). The goal is published on
+    `/end_effector_pose` as a CustomPoseStamped; the behaviour returns SUCCESS
+    and advances `index` once `/task_feedback` reports "success".
+    """
     def __init__(self, name):
         super(MoveToP1, self).__init__(name)
         
@@ -39,6 +50,7 @@ class MoveToP1(Behaviour):
         self.count = 0
         
     def setup(self):
+        """Load the predefined pick-and-place goal list onto the blackboard."""
         self.logger.debug("  %s [Pick and Place::setup()]" % self.name)
         
         # print("Publish")
@@ -112,6 +124,7 @@ class MoveToP1(Behaviour):
     
     
     def initialise(self): 
+        """Read the goal at the current blackboard index."""
         # self.logger.debug("  %s [Pick and Place::initialis\e()]" % self.name)
         
         # self.index = self.blackboard.index
@@ -123,11 +136,11 @@ class MoveToP1(Behaviour):
          
         
     def callback(self, msg):
-        
+        """Store the latest `/task_feedback` string."""
         self.end_effector_pose_reached = msg.data
     
     def update(self):
-        
+        """Publish the goal and return SUCCESS, FAILURE or RUNNING based on the feedback."""
         # print(f"MoveToP_update + {self.location}")
         if True or self.publish_once:
             # read location from BB and publish it 
@@ -192,6 +205,12 @@ class MoveToP1(Behaviour):
 
 
 class Pick(py_trees.behaviour.Behaviour):
+    """
+    Behaviour that switches the vacuum gripper on through the
+    `/turtlebot/swiftpro/vacuum_gripper/set_pump` service.
+
+    Returns SUCCESS if the service call succeeds, FAILURE otherwise.
+    """
     def __init__(self, name):
         super(Pick, self).__init__(name)
         self.blackboard = self.attach_blackboard_client(name=self.name)
@@ -201,6 +220,7 @@ class Pick(py_trees.behaviour.Behaviour):
         
 
     def setup(self):
+        """Create the pump publisher and wait for the pump service."""
         self.logger.debug("  %s [Pick::setup()]" % self.name)
         self.pub_pump = rospy.Publisher('/turtlebot/swiftpro/vacuum_gripper/pump_state', Bool, queue_size=1)
         rospy.wait_for_service('/turtlebot/swiftpro/vacuum_gripper/set_pump')
@@ -218,6 +238,7 @@ class Pick(py_trees.behaviour.Behaviour):
         
     
     def update(self):
+        """Turn the pump on and report the outcome."""
         print("Pick_update")
          # Call the service to set the pump state
         pump_state = True  # Set the desired pump state (True for on, False for off)
@@ -241,6 +262,12 @@ class Pick(py_trees.behaviour.Behaviour):
         
         
 class Place(py_trees.behaviour.Behaviour):
+    """
+    Behaviour that switches the vacuum gripper off through the
+    `/turtlebot/swiftpro/vacuum_gripper/set_pump` service.
+
+    Returns SUCCESS if the service call succeeds, FAILURE otherwise.
+    """
     def __init__(self, name):
         super(Place, self).__init__(name)
         self.blackboard = self.attach_blackboard_client(name=self.name)
@@ -250,6 +277,7 @@ class Place(py_trees.behaviour.Behaviour):
         self.pub_pump = rospy.Publisher('/turtlebot/swiftpro/vacuum_gripper/pump_state', Bool, queue_size=10)
       
     def setup(self):
+        """Wait for the pump service and create its client."""
         self.logger.debug("  %s [Place::setup()]" % self.name)
         rospy.wait_for_service('/turtlebot/swiftpro/vacuum_gripper/set_pump')
         self.set_pump_client = rospy.ServiceProxy('/turtlebot/swiftpro/vacuum_gripper/set_pump', SetBool)
@@ -263,6 +291,7 @@ class Place(py_trees.behaviour.Behaviour):
         self.end_effector_pose_reached = data.data
         
     def update(self):
+        """Turn the pump off and report the outcome."""
         print("Place_update")   
         # Call the service to set the pump state
         pump_state = False  # Set the desired pump state (True for on, False for off)

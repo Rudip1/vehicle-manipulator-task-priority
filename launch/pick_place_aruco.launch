@@ -1,0 +1,13 @@
+
+<launch>
+    <param name="~frame_id" type="string" value="world_ned" />
+    <include file="$(find mobile_manipulator_tp)/launch/turtlebot_sim.launch" />
+    
+    <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find mobile_manipulator_tp)/config/mobile_base.rviz"/> -->
+    <node pkg="mobile_manipulator_tp" type="Wheel_vel.py" name="To_wheel_vel_converter" output="screen"/>
+    <node pkg="mobile_manipulator_tp" type="base_tp_simulation.py" name="TP_node" output="screen"/>
+    <node pkg="mobile_manipulator_tp" type="behaviour_tree_simu.py" name="BT_node" output="screen"/>
+    <node pkg="mobile_manipulator_tp" type="aruco_node_simulation.py" name="Aruco_node" output="screen"/>
+     
+</launch>
+

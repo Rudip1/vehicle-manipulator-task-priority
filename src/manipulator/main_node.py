@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""ROS node running the task-priority controller on the uArm Swift Pro alone
+(no mobile base)."""
 
 import rospy
 from sensor_msgs.msg import JointState 
@@ -15,6 +17,17 @@ from nav_msgs.msg import Odometry
 from Manipulator_task import Position3D, Orientation3D, Configuration3D, JointPosition, JointLimitTask
 
 class Manipulator():
+    """
+    Arm-only task-priority controller for the 4-DOF uArm Swift Pro.
+
+    On every joint-state message the forward kinematics and analytical
+    Jacobian are evaluated, the goal list is turned into tasks and the
+    resulting joint velocities are published to
+    `/swiftpro/joint_velocity_controller/command`.
+
+    Arguments:
+    theta, theta2, theta3, theta4 (double): initial joint angles (rad)
+    """
     def __init__(self, theta, theta2, theta3, theta4):
         self.revolute = [True, True , True , True]
         self.dof = len(self.revolute)
@@ -41,6 +54,7 @@ class Manipulator():
        
     
     def JointState_callback(self,data):
+        """Update the joint state, extend the end-effector path and run one control step."""
         if data.name == ['swiftpro/joint1', 'swiftpro/joint2', 'swiftpro/joint3', 'swiftpro/joint4']:
             # Extract joint angles from the message
             self.theta, self.theta2, self.theta3, self.theta4 = data.position 
@@ -55,6 +69,7 @@ class Manipulator():
             self.Task_priority_algorithm(goals)
             
     def kinematics(self): 
+        """Return (T, x, y, z): end-effector transformation and position in the arm base frame."""
         # Geometric end-effector position with respect to the manipulator base 
         self.x = (0.0132 - 0.142 * np.sin(self.theta2)  + 0.1588 * np.cos(self.theta3)  + 0.0565) * np.cos(self.theta)
         self.y = (0.0132 - 0.142 * np.sin(self.theta2)  + 0.1588 * np.cos(self.theta3)  + 0.0565) * np.sin(self.theta)
@@ -71,6 +86,7 @@ class Manipulator():
     
     
     def Jacobian(self):
+        """Return the 6x4 analytical end-effector Jacobian for the current joint angles."""
          # partial derivative of the end-effector position with respect to the joint angles
         EEx_dq1 = -np.sin(self.theta) * (0.0697 - 0.142 * np.sin(self.theta2) + 0.1588 * np.cos(self.theta3))
         EEx_dq2 = -0.142 * np.cos(self.theta) * np.cos(self.theta2)
@@ -98,6 +114,7 @@ class Manipulator():
     
     
     def update(self, theta, theta2, theta3, theta4):
+        """Store the current joint angles."""
         self.theta = theta
         self.theta2 = theta2
         self.theta3 = theta3
@@ -105,36 +122,40 @@ class Manipulator():
         self.q = [self.theta, self.theta2, self.theta3, self.theta4]
         
 
-    '''
-        Method that returns the end-effector Jacobian.
-    '''
     def getEEJacobian(self, link):
+        '''
+            Method that returns column `link` of the end-effector Jacobian.
+        '''
         return self.Jacobian()[:, link]
     
     def getJacobian(self):
+        """Return the most recently computed Jacobian."""
         return self.J
-    '''
-        Method that returns the end-effector transformation.
-    '''
     def getEETransform(self):
+        '''
+            Method that returns the end-effector transformation.
+        '''
         return self.trans_mat
     
     def get_link_Jacobian(self, link):
+        """Return the full end-effector Jacobian (the `link` argument is ignored)."""
         return self.Jacobian()#[:, link]
 
     def getLinkTransform(self,link):
+            """Return the end-effector transformation (the `link` argument is ignored)."""
             return self.kinematics()[0]
-    '''
-        Method that returns number of DOF of the manipulator.
-    '''
     def getDOF(self):
+        '''
+            Method that returns number of DOF of the manipulator.
+        '''
         return self.dof
     
     def getJointPos(self, joint):
+        """Return the angle of the given joint (0-based)."""
         return self.q[joint]
                                                         
     def DLS(self, A, damping):
-      
+        """Return the damped least-squares inverse (A^T A + damping^2 I)^-1 A^T."""
         A_TA = np.matmul(A.T, A)
         I = np.identity(A_TA.shape[0])
         DLS = np.linalg.inv(A_TA + damping**2 * I)
@@ -143,6 +164,7 @@ class Manipulator():
         return  DLS
     
     def send_commnd(self, q):
+        """Publish the four joint velocities in `q`."""
         # Manipulator base publisher 
         p = Float64MultiArray()
         p.data = [float(q[0]), float(q[1]), float(q[2]), float(q[3])]
@@ -151,6 +173,12 @@ class Manipulator():
 
     # Task definition                                          
     def tasks(self, goals):
+        """
+        Build the task list from goal descriptors and publish the goal pose.
+
+        Each goal is [type, values] with type 0 = position, 1 = orientation,
+        2 = configuration, 3 = joint position, 4 = joint limit.
+        """
         tasks = []
         pose_stamped = PoseStamped()
         pose_ = pose_stamped.pose.position
@@ -195,6 +223,11 @@ class Manipulator():
         return tasks
     
     def Task_priority_algorithm(self, goal):
+        """
+        Run one recursive task-priority step and publish the joint velocities.
+
+        Motion stops once the first task's error norm is below 0.005.
+        """
         tasks = self.tasks(goal)            
         dof = self.getDOF()
         # # Initialize null-space projector
@@ -220,6 +253,7 @@ class Manipulator():
             return
         self.send_commnd(dq)
     def update_ee_path(self, x, y, z):
+        """Append the end-effector position to the published Path."""
         pose = PoseStamped()
         pose.header.stamp = rospy.Time.now()
         pose.header.frame_id = "swiftpro/manipulator_base_link"

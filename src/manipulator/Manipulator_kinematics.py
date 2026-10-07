@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""ROS node computing the uArm Swift Pro forward kinematics from joint states
+and publishing the end-effector pose."""
 
 import rospy
 from std_msgs.msg import Float64MultiArray
@@ -12,6 +14,13 @@ from geometry_msgs.msg import PoseStamped
 
 
 class kinematics:
+    """
+    Forward kinematics of the uArm Swift Pro (arm-only simulation).
+
+    Subscribes to `/swiftpro/joint_states` and `/turtlebot/odom`; publishes the
+    end-effector pose on `/End_effector_pose` (frame
+    `swiftpro/manipulator_base_link`).
+    """
     def __init__(self):
 
         self.theta = None
@@ -37,6 +46,7 @@ class kinematics:
         
 
     def get_odom(self, odom):
+        """Store the base pose [x, y, z, yaw] from an Odometry message."""
         _, _, yaw = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x, 
                                                               odom.pose.pose.orientation.y,
                                                               odom.pose.pose.orientation.z,
@@ -48,6 +58,7 @@ class kinematics:
         
         
     def kinematics_publisher(self):
+        """Publish zero joint velocities at 10 Hz until shutdown."""
         rate = rospy.Rate(10)  
         while not rospy.is_shutdown():
             # Create a Float64MultiArray message object
@@ -60,6 +71,7 @@ class kinematics:
             
 
     def rot(self, axis, theta):
+        """Return a 4x4 homogeneous rotation about 'x', 'y' or 'z' (entries rounded to 2 decimals)."""
         # Generate rotation matrix around specified axis by theta (in radians)
         if axis == 'x':
             matrix = np.array([[1, 0, 0, 0],
@@ -83,7 +95,7 @@ class kinematics:
     
     
     def translation_matrix(self, translation):
-       
+        """Return a 4x4 homogeneous translation for a 3-element vector."""
         if len(translation) != 3:
             raise ValueError("Invalid translation vector. Must have three elements.")
         
@@ -94,7 +106,7 @@ class kinematics:
 
 
     def JointState_callback(self, data):
-
+        """Compute the end-effector transformation from the arm joint angles and publish it."""
         # Check if the joint names in the received message match the expected names
         if data.name == ['swiftpro/joint1', 'swiftpro/joint2', 'swiftpro/joint3', 'swiftpro/joint4']:
             # Extract joint angles from the message
@@ -120,7 +132,7 @@ class kinematics:
     
     
     def marker_EE(self):
-        
+        """Publish the current end-effector pose as a PoseStamped."""
         position_EE = self.transformation_mat[:, -1]
         pose_stamped = PoseStamped()
         pose_ = pose_stamped.pose.position   

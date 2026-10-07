@@ -1,5 +1,5 @@
 <launch>
-    <include file="$(find hoi)/launch/turtlebot_basic.launch">
+    <include file="$(find mobile_manipulator_tp)/launch/turtlebot_basic.launch">
         <arg name="robot_name" value="turtlebot"/>
         <arg name="simulation_data" value="$(find turtlebot_simulation)/resources"/>
         <arg name="scenario_description" value="$(find turtlebot_simulation)/scenarios/turtlebot_hoi.scn"/>

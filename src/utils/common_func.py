@@ -1,3 +1,6 @@
+"""Generic kinematics helpers: Denavit-Hartenberg transforms, Jacobians and
+(damped) matrix inverses used by the task-priority controllers."""
+
 import numpy as np # Import Numpy
 from math import cos, sin ,tan  # Import cos and sin functions from math module
 
@@ -6,9 +9,9 @@ def DH(d, theta, a, alpha):
         Function builds elementary Denavit-Hartenberg transformation matrices 
         and returns the transformation matrix resulting from their multiplication.
 
-        d (double): displacement along Z-axis
         Arguments:
-        [cos(theta) , -cos(alpha)*sin(theta), sin(alpha)*sin(theta) ,a*cos(theta) ]
+        d (double): displacement along Z-axis
+        theta (double): rotation around Z-axis
         a (double): displacement along X-axis
         alpha (double): rotation around X-axis
 
@@ -38,6 +41,7 @@ def kinematics(d, theta, a, alpha , Tb=np.eye(4)):
         theta (list of double): list of rotations around Z-axis
         a (list of double): list of displacements along X-axis
         alpha (list of double): list of rotations around X-axis
+        Tb (Numpy array): 4x4 base transformation prepended to the chain (default: identity)
 
         Returns:
         (list of Numpy array): list of transformations along the kinematic chain (from the base frame)
@@ -69,10 +73,11 @@ def jacobian(T,EE_p, revolute):
 
         Arguments:
         T (list of Numpy array): list of transformations along the kinematic chain of the robot (from the base frame)
+        EE_p (Numpy array): end-effector position (3 elements) used as the reference point
         revolute (list of Bool): list of flags specifying if the corresponding joint is a revolute joint
 
         Returns:
-        (Numpy array): end-effector Jacobian
+        (Numpy array): end-effector Jacobian (6 x N)
     '''
     # 1. Initialize J and O.
     # 2. For each joint of the robot
@@ -111,6 +116,7 @@ def DLS(A, damping =0.1 , W = np.eye(6)):
         Arguments:
         A (Numpy array): matrix to be inverted
         damping (double): damping factor
+        W (Numpy array): weight matrix (TODO: currently unused; see W_DLS for the weighted variant)
 
         Returns:
         (Numpy array): inversion of the input matrix
@@ -121,7 +127,7 @@ def DLS(A, damping =0.1 , W = np.eye(6)):
 # Damped Least-Squares
 def W_DLS(A, damping=0.1, W=None):
     '''
-    Function computes the damped least-squares (DLS) solution to the matrix inverse problem.
+    Function computes the weighted damped least-squares (DLS) solution to the matrix inverse problem.
 
     Arguments:
     A (Numpy array): matrix to be inverted
@@ -177,9 +183,20 @@ def robotPoints2D(T):
         P[:,i] = T[i][0:2,3]
     return P
 
-def jacobianLink(T, revolute, link): # Needed in Exercise 2
-  
-    # Code almost identical to the one from lab2_robotics...
+def jacobianLink(T, revolute, link):
+    '''
+        Function builds the Jacobian of a selected link of a robot, using the
+        last transformation in T as the reference point. Columns of joints
+        beyond `link` are left as zeros.
+
+        Arguments:
+        T (list of Numpy array): list of transformations along the kinematic chain of the robot (from the base frame)
+        revolute (list of Bool): list of flags specifying if the corresponding joint is a revolute joint
+        link (integer): number of joints that contribute to the Jacobian
+
+        Returns:
+        (Numpy array): link Jacobian (6 x N)
+    '''
     J = np.zeros((6, len(T)-1)) # Empty Jacobian (6 x N) where N - number of joints
     O = T[-1][:3, 3]# End-effector position   
 

@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+"""ROS node converting `/cmd_vel` Twist commands into Kobuki wheel velocities."""
 
 import roslib
 import rospy

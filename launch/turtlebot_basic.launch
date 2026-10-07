@@ -47,7 +47,7 @@
  
         <!-- RVIZ -->
         <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find turtlebot_description)/rviz/turtlebot.rviz"/> -->
-        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find hoi)/config/hoi_base.rviz"/>
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find mobile_manipulator_tp)/config/mobile_base.rviz"/>
 
     </group>
 </launch>

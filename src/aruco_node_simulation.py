@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""ROS node detecting ArUco markers in the RealSense colour image and
+publishing their pose in the `world_ned` frame on `/aruco_position`."""
 
 import roslib
 import sys
@@ -20,6 +22,12 @@ from scipy.spatial.transform import Rotation as R
 
 
 class image_converter:
+    """
+    ArUco marker detector and pose estimator.
+
+    Uses the camera intrinsics from `camera_info`, estimates each marker pose
+    (marker size 0.05 m) with OpenCV and transforms it to `world_ned` via tf2.
+    """
 
     def __init__(self):
         
@@ -54,6 +62,7 @@ class image_converter:
         
     
     def get_odom(self, odom):
+        """Store the base pose [x, y, yaw] from an Odometry message."""
         _, _, yaw = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x,
                                                               odom.pose.pose.orientation.y,
                                                               odom.pose.pose.orientation.z,
@@ -62,7 +71,7 @@ class image_converter:
         # print(f"current_pose {self.current_pose}")  
      
     def camera_info_callback(self, msg):
-        
+        """Store the camera frame id, intrinsic matrix and distortion coefficients."""
         self.camera_id = msg.header.frame_id
         
         # print(f"camera_id {self.camera_id}")
@@ -72,6 +81,7 @@ class image_converter:
 
     
     def callback(self, data):
+        """Detect markers in an image, publish their world poses and show the annotated image."""
         try:
             # print("Detecting ArUco markers...") 
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -153,6 +163,7 @@ class image_converter:
             
 
 def main(args):
+    """Start the ArUco detection node."""
     rospy.init_node('aruco_detection', anonymous=True)
     ic = image_converter()
     
