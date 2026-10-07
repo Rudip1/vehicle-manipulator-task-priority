@@ -1,0 +1,4 @@
+# Pure-Python dependencies of the kinematics and task modules (src/utils,
+# src/manipulator/Manipulator_task.py). The ROS nodes additionally need a
+# ROS Noetic installation; see README.md.
+numpy

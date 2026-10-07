@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
+"""Task definitions for the task-priority controller of the mobile manipulator.
+
+Each task exposes a Jacobian, an error and a gain; the controller stacks them
+in priority order and resolves joint/base velocities through null-space
+projection.
+"""
 import numpy as np
 import math
-# from lab2_robotics imaport *
 from utils.common_func import *
-# from lab5 import * 
 
 import sys
 import os
 
-# Get the directory of the current file (e.g., .../hoi/src/utils)
+# Get the directory of the current file (src/utils)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Add to sys.path if not already added
@@ -21,6 +25,7 @@ from common_func import *
 
  
 def wrap_angle(angle):
+    """Wrap an angle (rad) to the interval [-pi, pi)."""
     return (angle + ( 2.0 * np.pi * np.floor( ( np.pi - angle ) / ( 2.0 * np.pi ) ) ) )
 
 class Task:
@@ -48,9 +53,11 @@ class Task:
     
     
     def setGain(self,K):
+        """Sets the task gain matrix K."""
         self.K = K
     
     def getGain(self):
+        """Returns the task gain matrix K."""
         return self.K
     
     
@@ -67,10 +74,11 @@ class Task:
         return self.J
     
     def get_base_jacobian(self):
+        """Placeholder; returns None."""
         return
         
     def getJointPos(self, joint):
-        
+        """Returns the stored position of the given joint (requires self.q to be set)."""
         return self.q[joint]
 
     def getError(self):
@@ -90,16 +98,28 @@ class Task:
             return True
         
     def get_link_Transform(self, link):
+        """Returns the stored transformation of the given link (requires self.T to be set)."""
         return self.T[link]
     
     
     def getEEJacobian(self):
+        """Returns the planar part of the end-effector Jacobian.
+
+        TODO: `jacobian` in common_func also expects an end-effector position
+        argument; this helper is not called by the controllers.
+        """
         return jacobian(self.T, self.revolute)[:2, :]
 
    
 class Position3D(Task):
     """
     Subclass of Task, representing the 3D position task.
+
+    Arguments:
+    name (string): title of the task
+    desired (Numpy array): desired position (3 x 1)
+    joint (integer): link index passed to the robot model
+    K (Numpy array): 3 x 3 gain matrix
     """
 
     def __init__(self, name, desired, joint, K = np.diag([10,10,10])):
@@ -118,7 +138,13 @@ class Position3D(Task):
 class Orientation3D(Task):
     
     """
-    Subclass of Task, representing the 3D orientation task.
+    Subclass of Task, representing the 3D orientation (yaw) task.
+
+    Arguments:
+    name (string): title of the task
+    desired (Numpy array): desired yaw angle (1 x 1)
+    joint (integer): link index passed to the robot model
+    K (Numpy array): 1 x 1 gain matrix
     """
 
     def __init__(self, name, desired,joint=6, K = np.diag([10])):
@@ -137,6 +163,17 @@ class Orientation3D(Task):
         
 
 class Base(Task):
+    """
+    Subclass of Task, representing the mobile-base pose task.
+
+    The task variable is the base pose [x, y, z, yaw] reported by
+    `robot.get_base_position()`, with Jacobian `robot.get_base_jacobian()`.
+
+    Arguments:
+    name (string): title of the task
+    desired (Numpy array): desired base pose (4 x 1)
+    K (Numpy array): 4 x 4 gain matrix
+    """
     def __init__(self, name, desired, K = np.diag([5,5,5,2])):
         super().__init__(name, desired)
         
@@ -164,6 +201,14 @@ class Base(Task):
 class Configuration3D(Task):
     """
     Subclass of Task, representing the 3D configuration task.
+
+    The task variable is [x, y, z, 0, 0, yaw] of the selected link.
+
+    Arguments:
+    name (string): title of the task
+    desired (Numpy array): desired configuration (6 x 1)
+    joint (integer): link index passed to the robot model
+    K (Numpy array): 6 x 6 gain matrix
     """
 
     def __init__(self, name, desired, joint=6, K = np.diag([5,5,5,0,0,2])):
@@ -188,6 +233,12 @@ class Configuration3D(Task):
 class JointPosition(Task):
     """
     Subclass of Task, representing the joint position task.
+
+    Arguments:
+    name (string): title of the task
+    desired (Numpy array): desired joint position (1 x 1)
+    joint (integer): index of the joint in the robot's generalised coordinates
+    K (Numpy array): 1 x 1 gain matrix
     """
     def __init__(self, name, desired, joint, K = np.diag([10])):
         super().__init__(name, desired)
@@ -206,6 +257,20 @@ class JointPosition(Task):
         
         
 class JointLimitTask(Task):
+    """
+    Subclass of Task, representing a joint-limit (set-based) task.
+
+    The task becomes active (activation -1 or +1) when the joint gets within
+    `alpha` of an upper or lower limit, and is released once it is `delta`
+    away from that limit. The task error equals the activation value.
+
+    Arguments:
+    name (string): title of the task
+    threshold (list of double): [alpha, delta] activation / deactivation margins
+    Q (list of double): [q_min, q_max] joint limits
+    joint (integer): 1-based index of the joint in the robot's generalised coordinates
+    K (Numpy array): 1 x 1 gain matrix
+    """
     def __init__(self, name, threshold, Q, joint, K =np.eye(1)):
         super().__init__(name, threshold)
         self.J = np.zeros((1, 6))
@@ -220,7 +285,7 @@ class JointLimitTask(Task):
         
 
     def update(self, robot):
-        
+        """Updates the Jacobian and the activation state from the current joint position."""
         # print("self.limit_activation", self.J)
         
         # self.J = robot.get_link_Jacobian(self.joint)[5, :].reshape(1, robot.getDOF())
