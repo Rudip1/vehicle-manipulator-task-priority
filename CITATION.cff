@@ -4,7 +4,7 @@ title: "Kinematic Control of a Vehicle-Manipulator System Using Task-Priority Re
 type: software
 version: 0.1.0
 license: Apache-2.0
-repository-code: "https://github.com/Rudip1/hands_on_intervention"
+repository-code: "https://github.com/Rudip1/vehicle-manipulator-task-priority"
 authors:
   - given-names: Pravin
     family-names: Oli

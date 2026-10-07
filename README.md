@@ -79,7 +79,7 @@ The steps below were verified on ROS Noetic. They build the package and generate
 
 ```bash
 mkdir -p ~/catkin_ws/src && cd ~/catkin_ws/src
-git clone https://github.com/Rudip1/hands_on_intervention.git mobile_manipulator_tp
+git clone https://github.com/Rudip1/vehicle-manipulator-task-priority.git mobile_manipulator_tp
 cd ~/catkin_ws
 source /opt/ros/noetic/setup.bash
 catkin_make            # or: catkin build
