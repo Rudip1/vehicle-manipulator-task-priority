@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "Kinematic Control of a Vehicle-Manipulator System Using Task-Priority Redundancy Resolution"
+type: software
+version: 0.1.0
+license: Apache-2.0
+repository-code: "https://github.com/Rudip1/hands_on_intervention"
+authors:
+  - given-names: Pravin
+    family-names: Oli
+  # TODO: confirm the full family name of the second author.
+  - given-names: Gebrecherkos
+    family-names: G.
+keywords:
+  - mobile manipulation
+  - task-priority control
+  - redundancy resolution
+  - behaviour trees
+  - ArUco
+  - ROS

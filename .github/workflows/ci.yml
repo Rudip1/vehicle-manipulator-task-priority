@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  catkin-package:
+    name: colcon build (ROS Noetic)
+    runs-on: ubuntu-latest
+    container: ros:noetic-ros-base
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src/mobile_manipulator_tp
+
+      - name: Install colcon
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-pip
+          pip3 install colcon-common-extensions
+
+      - name: Build
+        run: |
+          source /opt/ros/noetic/setup.bash
+          colcon build --event-handlers console_cohesion+
+
+      - name: Import generated messages and pure-Python modules
+        run: |
+          source install/setup.bash
+          python3 -c "from mobile_manipulator_tp.msg import CustomPoseStamped; from mobile_manipulator_tp.srv import Goalreached"
+          cd src/mobile_manipulator_tp/src
+          python3 -c "import utils.common_func, utils.tasks3D"
+          cd manipulator && python3 -c "import Manipulator_task"
+
+      - name: Byte-compile all nodes
+        run: python3 -m compileall -q src/mobile_manipulator_tp/src
+
+  python:
+    name: pip install + import (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Import test
+        run: |
+          cd src
+          python -c "import utils.common_func, utils.tasks3D"
+          cd manipulator && python -c "import Manipulator_task"

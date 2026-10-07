@@ -33,9 +33,9 @@
     </group>
 
     <!-- RVIZ -->
-        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find hands_on_intervention)/config/manipulator.rviz"/>
-        <node pkg = "hands_on_intervention" type= "main_node.py" name="Kinematics" output="screen"/>
-        <node pkg = "hands_on_intervention" type= "main_node.py" name="task" output="screen"/>
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find mobile_manipulator_tp)/config/manipulator.rviz"/>
+        <node pkg = "mobile_manipulator_tp" type= "main_node.py" name="Kinematics" output="screen"/>
+        <node pkg = "mobile_manipulator_tp" type= "main_node.py" name="task" output="screen"/>
 
 
 </launch>
