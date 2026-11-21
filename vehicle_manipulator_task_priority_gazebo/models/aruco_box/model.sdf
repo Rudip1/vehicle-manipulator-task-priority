@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<!-- The object to pick: a 0.07 m cube with ArUco marker 1 on each vertical face (texture made by
+     scripts/make_markers.py). Light enough for the suction gripper. -->
+<sdf version="1.9">
+  <model name="aruco_box">
+    <link name="link">
+      <inertial>
+        <mass>0.05</mass>
+        <inertia><ixx>4.1e-5</ixx><iyy>4.1e-5</iyy><izz>4.1e-5</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><box><size>0.07 0.07 0.07</size></box></geometry>
+        <surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface>
+      </collision>
+      <visual name="body">
+        <geometry><box><size>0.0698 0.0698 0.0698</size></box></geometry>
+        <material><diffuse>0.95 0.95 0.95 1</diffuse><ambient>0.9 0.9 0.9 1</ambient></material>
+      </visual>
+      <visual name="marker_px">
+        <pose>0.0351 0 0 0 1.5707963 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>0.07 0.07</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>materials/textures/marker_1.png</albedo_map><roughness>1</roughness><metalness>0</metalness></metal></pbr>
+        </material>
+      </visual>
+      <visual name="marker_nx">
+        <pose>-0.0351 0 0 0 -1.5707963 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>0.07 0.07</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>materials/textures/marker_1.png</albedo_map><roughness>1</roughness><metalness>0</metalness></metal></pbr>
+        </material>
+      </visual>
+      <visual name="marker_py">
+        <pose>0 0.0351 0 -1.5707963 0 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>0.07 0.07</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>materials/textures/marker_1.png</albedo_map><roughness>1</roughness><metalness>0</metalness></metal></pbr>
+        </material>
+      </visual>
+      <visual name="marker_ny">
+        <pose>0 -0.0351 0 1.5707963 0 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>0.07 0.07</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>materials/textures/marker_1.png</albedo_map><roughness>1</roughness><metalness>0</metalness></metal></pbr>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
