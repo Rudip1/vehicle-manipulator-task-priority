@@ -66,7 +66,20 @@ void Controller::set_posture_goal(const Vector4d& posture) {
     goal_type_ = GoalType::Posture;
 }
 
+void Controller::set_heading_goal(double yaw) {
+    Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
+    T(0, 0) = std::cos(yaw);
+    T(0, 1) = -std::sin(yaw);
+    T(1, 0) = std::sin(yaw);
+    T(1, 1) = std::cos(yaw);
+    auto task = std::make_shared<mc::FrameTask>("base heading", kBase, std::vector<int>{5}, T);
+    task->set_gain(config_.gain_heading);
+    goal_ = task;
+    goal_type_ = GoalType::Heading;
+}
+
 void Controller::clear_goal() {
+    goal_tolerance_ = 0.0;
     goal_.reset();
     goal_type_ = GoalType::None;
 }
@@ -83,21 +96,25 @@ Eigen::VectorXd Controller::step(const Eigen::VectorXd& q) {
     active_limits_ = 0;
     for (int i = 0; i < 4; ++i)
         if (limits_[size_t(i)]->is_active()) active_limits_ |= 1u << i;
-    goal_error_ = goal_ ? goal_->error().head(goal_type_ == GoalType::Posture ? 4 : 3).norm() : 0.0;
+    const int rows = goal_type_ == GoalType::Posture ? 4 : goal_type_ == GoalType::Heading ? 1 : 3;
+    goal_error_ = goal_ ? goal_->error().head(rows).norm() : 0.0;
     yaw_error_ = goal_type_ == GoalType::PositionYaw ? std::abs(goal_->error()(3)) : 0.0;
     return u;
 }
 
 bool Controller::goal_reached() const {
+    const double pos_tol = goal_tolerance_ > 0.0 ? goal_tolerance_ : config_.position_tolerance;
+    const double joint_tol = goal_tolerance_ > 0.0 ? goal_tolerance_ : config_.joint_tolerance;
     switch (goal_type_) {
         case GoalType::None:
             return true;
         case GoalType::Posture:
-            return goal_error_ < config_.joint_tolerance;
+        case GoalType::Heading:
+            return goal_error_ < joint_tol;
         case GoalType::Position:
-            return goal_error_ < config_.position_tolerance;
+            return goal_error_ < pos_tol;
         case GoalType::PositionYaw:
-            return goal_error_ < config_.position_tolerance && yaw_error_ < config_.yaw_tolerance;
+            return goal_error_ < pos_tol && yaw_error_ < config_.yaw_tolerance;
     }
     return false;
 }

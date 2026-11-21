@@ -1,0 +1,34 @@
+task_priority_controller:
+  ros__parameters:
+    rate: 50.0
+    gain_position: 1.0
+    gain_yaw: 1.0
+    gain_joints: 1.0
+    gain_heading: 1.0
+    gain_limits: 0.5
+    limit_alpha: 0.05
+    limit_delta: 0.09
+    damping: 0.05
+    max_speed: 0.3
+    weights: [2.0, 2.0, 1.0, 1.0, 1.0, 1.0]   # omega, v, t1..t4
+    position_tolerance: 0.01
+    joint_tolerance: 0.03
+    wrist_level_gain: 2.0
+    default_timeout: 90.0
+aruco_detector:
+  ros__parameters:
+    marker_ids: [1, 2]          # 1 = box, 2 = place stand
+    depths: [0.035, 0.06]       # marker face to the object's vertical axis [m]
+    rises: [0.035, 0.04]        # marker centre to the object's top face [m]
+    marker_size: 0.05
+    target_frame: odom
+    window: 15
+    max_range: 2.5
+mission:
+  ros__parameters:
+    pick_guess: [1.2, 0.4, 0.15]    # rough box top, to drive near it before looking
+    place_guess: [-0.3, 1.2, 0.08]  # rough stand top
+    target_ids: [1, 2]
+    fixed_target_1: [1.2, 0.4, 0.15]  # used only with use_aruco:=false
+    fixed_target_2: [-0.3, 1.2, 0.08]
+    tick_rate: 20.0

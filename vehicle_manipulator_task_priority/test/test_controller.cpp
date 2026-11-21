@@ -88,3 +88,13 @@ TEST(Controller, PickAndPlaceSequence) {
     c.set_posture_goal(start().tail<4>());
     EXPECT_TRUE(run_goal(c, q).reached);
 }
+
+TEST(Controller, HeadingGoalTurnsOnlyTheBase) {
+    vm::Controller c(vm::MobileSwiftPro(vm::MobileSwiftPro::default_mount()));
+    c.set_heading_goal(1.2);
+    const GoalRun r = run_goal(c, start());
+    ASSERT_TRUE(r.reached);
+    EXPECT_NEAR(r.q(2), 1.2, 0.03);
+    EXPECT_LT(r.q.head<2>().norm(), 1e-9);                 // turned on the spot
+    EXPECT_LT((r.q.tail<4>() - start().tail<4>()).norm(), 1e-9);  // arm untouched
+}

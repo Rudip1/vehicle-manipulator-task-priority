@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!-- Pick the box (ArUco marker 1) and place it on the stand with marker 2.
+     Each object is approached twice: first roughly (to {pick_guess} / {place_guess}, stopping 25 cm short), then the base turns
+     to face it and the approach is finished from a fresh ArUco measurement taken there, so that odometry drift collected on the way cancels.
+     Cup heights: box top found by the detector; place target = stand top + box height (0.07 m). Approach and leave
+     6-10 cm above, touch with a few millimetres to spare. -->
+<root BTCPP_format="4" main_tree_to_execute="PickAndPlace">
+  <BehaviorTree ID="PickAndPlace">
+    <Sequence>
+      <SetSuction name="release_at_start" on="false"/>
+      <MovePosture name="carry_posture" posture="0;-0.3;-0.6;0"/>
+
+      <MoveEE name="near_box" target="{pick_guess}" offset="0;0;0.08" tolerance="0.25"/>
+      <FaceTarget name="face_box" target="{pick_guess}"/>
+      <WaitForTarget name="find_box" id="1" top="{box_top}" detections="10" timeout="20"/>
+      <RetryUntilSuccessful num_attempts="2">
+        <MoveEE name="above_box" target="{box_top}" offset="0;0;0.06"/>
+      </RetryUntilSuccessful>
+      <MoveEE name="touch_box" target="{box_top}" offset="0;0;0.002" tolerance="0.004" timeout="20"/>
+      <SetSuction name="grip" on="true"/>
+      <MoveEE name="lift" target="{box_top}" offset="0;0;0.08" timeout="20"/>
+      <MovePosture name="carry" posture="0;-0.3;-0.6;0"/>
+
+      <MoveEE name="near_place" target="{place_guess}" offset="0;0;0.15" tolerance="0.25"/>
+      <FaceTarget name="face_place" target="{place_guess}"/>
+      <WaitForTarget name="find_place" id="2" top="{place_top}" add="0;0;0.07" detections="10" timeout="20"/>
+      <RetryUntilSuccessful num_attempts="2">
+        <MoveEE name="above_place" target="{place_top}" offset="0;0;0.08"/>
+      </RetryUntilSuccessful>
+      <MoveEE name="set_down" target="{place_top}" offset="0;0;0.004" tolerance="0.004" timeout="20"/>
+      <SetSuction name="release" on="false"/>
+      <MoveEE name="retreat" target="{place_top}" offset="0;0;0.08" timeout="20"/>
+      <MovePosture name="park" posture="0;-0.3;-0.6;0"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

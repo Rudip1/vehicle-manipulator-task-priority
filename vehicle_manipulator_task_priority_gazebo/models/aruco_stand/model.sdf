@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- The place stand: 0.12 x 0.12 x 0.08 m, with ArUco marker 2 centred on each side face (texture made by
+     scripts/make_markers.py), so the robot can find it again after driving. Model origin at the stand's centre. -->
+<sdf version="1.9">
+  <model name="aruco_stand">
+    <static>true</static>
+    <link name="link">
+      <collision name="collision"><geometry><box><size>0.12 0.12 0.08</size></box></geometry></collision>
+      <visual name="body">
+        <geometry><box><size>0.1198 0.1198 0.0798</size></box></geometry>
+        <material><diffuse>0.7 0.45 0.3 1</diffuse><ambient>0.7 0.45 0.3 1</ambient></material>
+      </visual>
+      <visual name="marker_px">
+        <pose>0.0601 0 0 0 1.5707963 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>0.065 0.065</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>materials/textures/marker_2.png</albedo_map><roughness>1</roughness><metalness>0</metalness></metal></pbr>
+        </material>
+      </visual>
+      <visual name="marker_nx">
+        <pose>-0.0601 0 0 0 -1.5707963 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>0.065 0.065</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>materials/textures/marker_2.png</albedo_map><roughness>1</roughness><metalness>0</metalness></metal></pbr>
+        </material>
+      </visual>
+      <visual name="marker_py">
+        <pose>0 0.0601 0 -1.5707963 0 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>0.065 0.065</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>materials/textures/marker_2.png</albedo_map><roughness>1</roughness><metalness>0</metalness></metal></pbr>
+        </material>
+      </visual>
+      <visual name="marker_ny">
+        <pose>0 -0.0601 0 1.5707963 0 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>0.065 0.065</size></plane></geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>materials/textures/marker_2.png</albedo_map><roughness>1</roughness><metalness>0</metalness></metal></pbr>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

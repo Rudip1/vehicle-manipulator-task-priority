@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<!-- Pick-and-place world: a box with ArUco markers on a 0.08 m stand at (1.2, 0.4), and an empty stand at (-0.3, 1.2)
-     where it is to be placed. The robot starts at the origin facing +x. Surfaces are at 0.08 m, the box top at 0.15 m. -->
+<!-- Pick-and-place world: a box with ArUco markers on a 0.08 m stand at (1.2, 0.4), and a stand with ArUco marker 2 at
+     (-0.3, 1.2) where it is to be placed. The robot starts at the origin facing +x. Surfaces are at 0.08 m, the box top at 0.15 m. -->
 <sdf version="1.9">
   <world name="pick_place">
     <physics name="1ms" type="ignored">
@@ -41,15 +41,11 @@
       </link>
     </model>
 
-    <model name="place_stand">
-      <static>true</static>
-      <pose>-0.3 1.2 0.04 0 0 0</pose>
-      <link name="link">
-        <collision name="collision"><geometry><box><size>0.12 0.12 0.08</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>0.12 0.12 0.08</size></box></geometry>
-          <material><diffuse>0.7 0.45 0.3 1</diffuse><ambient>0.7 0.45 0.3 1</ambient></material></visual>
-      </link>
-    </model>
+    <include>
+      <uri>model://aruco_stand</uri>
+      <name>place_stand</name>
+      <pose>-0.3 1.2 0.04 0 0 0.4</pose>
+    </include>
 
     <include>
       <uri>model://aruco_box</uri>

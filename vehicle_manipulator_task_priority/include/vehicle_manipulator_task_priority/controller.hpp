@@ -3,7 +3,7 @@
 /// Task-priority controller of the mobile uArm, without ROS. Every step solves the hierarchy
 ///
 ///   1. joint limits of t1..t4 (set-based, active only near a limit)
-///   2. the current goal: suction-cup position (optionally with yaw), or an arm posture
+///   2. the current goal: suction-cup position (optionally with yaw), an arm posture, or a base heading
 ///
 /// with the weighted, damped recursion of learn-manipulator-control (chapters 7-9) and scales the command so
 /// that no entry exceeds the speed limit. A suction-cup goal far from the arm makes the base drive: the base is
@@ -23,6 +23,7 @@ struct ControllerConfig {
     double gain_position = 1.0;   ///< K of the suction-cup position task [1/s]
     double gain_yaw = 1.0;        ///< K of the suction-cup yaw component [1/s]
     double gain_joints = 1.0;     ///< K of the posture task [1/s]
+    double gain_heading = 1.0;    ///< K of the base-heading task [1/s]
     double gain_limits = 0.5;     ///< push of an active joint-limit task [rad/s]
     double limit_alpha = 0.05;    ///< activation margin of the joint limits [rad]
     double limit_delta = 0.09;    ///< release margin [rad]
@@ -35,7 +36,7 @@ struct ControllerConfig {
     double yaw_tolerance = 0.05;       ///< and below this suction-cup yaw error, for PositionYaw goals [rad]
 };
 
-enum class GoalType { None, Position, PositionYaw, Posture };
+enum class GoalType { None, Position, PositionYaw, Posture, Heading };
 
 class Controller {
   public:
@@ -50,7 +51,12 @@ class Controller {
     void set_position_yaw_goal(const Eigen::Vector3d& position, double yaw);
     /// Arm joints t1..t4 to @p posture; the base stays (it is not needed by this task).
     void set_posture_goal(const Vector4d& posture);
+    /// Turn the base on the spot to heading @p yaw (world frame); the arm and the base position are not tasks, so
+    /// with the minimum weighted norm only omega moves.
+    void set_heading_goal(double yaw);
     void clear_goal();
+    /// Tolerance of the current goal only (position [m] or posture [rad]); 0 restores the configured one.
+    void set_goal_tolerance(double tolerance) { goal_tolerance_ = tolerance; }
 
     GoalType goal_type() const { return goal_type_; }
 
@@ -73,6 +79,7 @@ class Controller {
     GoalType goal_type_ = GoalType::None;
     double goal_error_ = 0.0;
     double yaw_error_ = 0.0;
+    double goal_tolerance_ = 0.0;
     unsigned active_limits_ = 0;
 };
 

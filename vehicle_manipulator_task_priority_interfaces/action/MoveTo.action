@@ -1,0 +1,19 @@
+# Goal for the task-priority controller. Positions are of the suction cup, in the odometry frame.
+uint8 POSITION = 0      # suction cup to position, orientation free
+uint8 POSITION_YAW = 1  # suction cup to position and yaw
+uint8 POSTURE = 2       # arm joints t1..t4 to posture; the base stays
+uint8 HEADING = 3       # turn the base on the spot to face position (x, y); the arm stays
+uint8 type
+geometry_msgs/Point position
+float64 yaw
+float64[] posture
+float64 timeout         # [s]; 0 = the controller's default
+float64 tolerance       # [m] or [rad]; 0 = the controller's default
+---
+bool success
+float64 final_error     # [m] for position goals, [rad] for postures and headings
+float64 duration        # [s]
+string message
+---
+float64 error
+uint8 active_limits     # bit i: joint limit of t(i+1) active
