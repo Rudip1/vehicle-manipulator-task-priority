@@ -1,9 +1,0 @@
-<launch>
-    <param name="~frame_id" type="string" value="world_ned" />
-
-    <include file="$(find mobile_manipulator_tp)/launch/turtlebot_sim.launch" />
-    <node pkg="mobile_manipulator_tp" type="Wheel_vel.py" name="To_wheel_vel_converter" output="screen"/>
-    
-    <node pkg="mobile_manipulator_tp" type="TP_node.py" name="TP" output="screen"/>
-    <node pkg="mobile_manipulator_tp" type="BT_node.py" name="BT" output="screen"/> 
-</launch>
