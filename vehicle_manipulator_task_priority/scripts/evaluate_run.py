@@ -78,6 +78,7 @@ def main():
         rclpy.spin_once(node, timeout_sec=0.1)
     for _ in range(20):  # a last second of samples after the end
         rclpy.spin_once(node, timeout_sec=0.05)
+    node.sample()  # the final row carries the final mission status
     header = ["t", "gt_x", "gt_y", "gt_yaw", "odom_x", "odom_y", "odom_yaw", "ee_x", "ee_y", "ee_z", "box_x", "box_y",
               "box_z", "box_tilt_deg", "suction", "mission"]
     with open(args.csv, "w", newline="") as f:

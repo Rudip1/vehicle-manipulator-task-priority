@@ -1,173 +1,167 @@
-# Task-Priority Control of a Mobile Manipulator
+# Task-Priority Control of a Mobile Manipulator (ROS 2)
 
-Pick, transport and place with a Kobuki TurtleBot 2 and a uArm Swift Pro. The base and the arm are controlled together by recursive task-priority redundancy resolution, the steps are sequenced with behaviour trees, and the base is localised by dead reckoning or by ArUco markers (ROS Noetic, Stonefish simulator).
+Pick, transport and place with a differential-drive base carrying a uArm Swift Pro. Base and arm are controlled as
+**one kinematic system** by recursive task-priority redundancy resolution — joint limits first, the goal below — so a
+goal out of the arm's reach makes the base drive, without a separate navigation stack. A behaviour tree sequences the
+mission, and ArUco markers locate the box and the place stand. C++ for **ROS 2 Jazzy** and **Gazebo Harmonic** on
+Ubuntu 24.04.
 
-![Pick, transport and place driven by ArUco detection (simulation)](media/pick_place_aruco.gif)
+![Pick and place in Gazebo: ArUco-guided (left) and with fixed positions (right)](docs/results/pick_place.png)
 
-| Arm only | Pick and place, dead reckoning |
-|---|---|
-| ![Arm-only task-priority control](media/manipulator_only.gif) | ![Pick and place with dead reckoning](media/pick_place_dead_reckoning.gif) |
+## Result
 
-## Problem and key result
+Four headless runs of the whole mission in Gazebo, each recorded against ground truth by
+[`evaluate_run.py`](vehicle_manipulator_task_priority/scripts/evaluate_run.py). The CSV logs are in
+[`docs/results/`](docs/results); `python3 tools/plot_run.py docs/results/*.csv out.png` recomputes the numbers and
+the figure.
 
-A differential-drive base with a 4-DOF arm has 6 controllable DOF (base yaw rate and forward speed, plus 4 arm joints), so the robot is redundant for an end-effector position goal. The controller stacks the tasks by priority: four joint-limit tasks first, then one goal task (base pose, end-effector position or configuration, or joint position). It solves them with weighted damped least squares and null-space projection, then scales the result so that no joint or base velocity exceeds its limit.
+| run | localisation of the targets | mission | duration (sim) | box centre from the place-stand centre | odometry drift at the end |
+|---|---|---|---|---|---|
+| [ArUco 1](docs/results/aruco_run1.csv) | marker on the box and on the stand, measured on arrival | succeeded | 50.8 s | **0.17 cm** | 2.9 cm |
+| [ArUco 2](docs/results/aruco_run2.csv) | 〃 | succeeded | 50.4 s | **0.15 cm** | 2.9 cm |
+| [ArUco 3](docs/results/aruco_run3.csv) | 〃 | succeeded | 51.9 s | **0.17 cm** | 2.9 cm |
+| [fixed](docs/results/fixed_run1.csv) | known positions, dead reckoning only | succeeded | 49.7 s | 2.5 cm | 3.0 cm |
 
-What the code in this repository does:
+In every run the box ends upright (tilt 0.0°) and resting on the stand. The base drives 3.0 m; its wheel odometry
+drifts by about 3 cm. With fixed positions that drift ends up in the placement; with ArUco it cancels, because each
+target is measured in the odometry frame on arrival — the frame the controller itself works in. The three ArUco runs
+differ only through simulation timing: the controller and the tree are deterministic, so they are repeats, not
+independent trials.
 
-- **Limits and thresholds.** Joint limits are [-1.571, 1.571] rad for joints 1 and 4 and [-1.571, 0.05] rad for joints 2 and 3. The activation and deactivation margins are 0.05 / 0.09 rad. Velocities are capped at 0.2 (dead reckoning) or 0.3 (ArUco).
-- **Goal acceptance.** A goal counts as reached when the task error norm drops below:
-  - dead reckoning (`TP_node.py`): 0.03 for both base and end-effector goals.
-  - ArUco (`base_tp_simulation.py`): 0.07 for the base, 0.04 for end-effector and joint goals.
-- **ArUco approach.** Markers are 0.05 m. The base stops 0.29 m before the detected marker, measured along x.
-- **Result.** The report in [`docs/`](docs/vehicle_manipulator_task_priority_report.pdf) and the GIFs above document the pick, transport and place sequence in the Stonefish simulation, for both dead-reckoning and ArUco-based localisation. The report's trajectory, error and joint-velocity plots show the task error converging at each goal.
-  - TODO: report measured end-effector accuracy and execution time. No quantitative results are stored in this repository.
-
-## Architecture
-
-The nodes and topics below come from the source files in `src/` and from `launch/pick_place_aruco.launch`. The dead-reckoning variant (`launch/pick_place_dead_reckoning.launch`) is wired the same way, except that `BT_node.py` replaces `behaviour_tree_simu.py`, `TP_node.py` replaces `base_tp_simulation.py`, and there is no ArUco node; its goals are hard-coded.
+## How it works
 
 ```mermaid
 flowchart LR
-    subgraph SIM["Stonefish simulator + ros_control (external)"]
-        CAM["RealSense colour camera"]
-        JS["/turtlebot/joint_states"]
-        IMU["/turtlebot/kobuki/sensors/imu_data"]
-        WHEELS["Kobuki wheel controller"]
-        ARM["Swift Pro joint velocity controller"]
-        PUMP["vacuum gripper service<br/>/turtlebot/swiftpro/vacuum_gripper/set_pump"]
+    subgraph GZ["vehicle_manipulator_task_priority_gazebo (Gazebo Harmonic)"]
+        CAM["/camera/image"]
+        ODOM["/odom"]
+        JS["/joint_states"]
+        SUC["/suction/attach, detach, state"]
+        GT["ground truth"]
     end
-
-    ARUCO["aruco_node_simulation.py<br/>OpenCV ArUco + tf2"]
-    BT["behaviour_tree_simu.py<br/>py_trees sequence"]
-    TP["base_tp_simulation.py<br/>dead-reckoning EKF prediction + IMU heading<br/>recursive task-priority (W-DLS)"]
-    WV["Wheel_vel.py<br/>Twist to wheel speeds"]
-
-    CAM -- "image_color, camera_info" --> ARUCO
-    ARUCO -- "/aruco_position (PoseStamped, world_ned)" --> BT
-    BT -- "/end_effector_pose (CustomPoseStamped: goal + task id)" --> TP
-    TP -- "/task_feedback (String 'success')" --> BT
-    BT -- "SetBool" --> PUMP
+    AR["aruco_node<br/>OpenCV ArUco"]
+    BT["mission_node<br/>BehaviorTree.CPP 4"]
+    TP["controller_node<br/>task priority (vmtp_core)"]
+    CAM --> AR
+    AR -- "/aruco/target_1, target_2" --> BT
+    BT -- "MoveTo action" --> TP
+    BT --> SUC
+    ODOM --> TP
     JS --> TP
-    IMU --> TP
-    TP -- "/odom + tf world_ned to base_footprint" --> ARUCO
-    TP -- "/cmd_vel (Twist)" --> WV
-    WV -- "/turtlebot/kobuki/commands/wheel_velocities" --> WHEELS
-    TP -- "/turtlebot/swiftpro/joint_velocity_controller/command" --> ARM
+    TP -- "/cmd_vel, /arm/*/cmd_vel" --> GZ
+    GT -.->|only| EV["evaluate_run.py"]
 ```
 
-Task ids carried in `CustomPoseStamped.id` (see `goal_callback` in the controller nodes):
+**Controller.** The robot state is `q = (x, y, ψ, t1..t4)` and the commands are `u = (ω, v, ṫ1..ṫ4)`: the base's
+turn rate and forward speed (a unicycle cannot move sideways), then the four arm joints. Each step (50 Hz) solves
 
-| id | Task | Defined in |
-|---|---|---|
-| 2 | Base pose `[x, y, z, yaw]` | `src/utils/tasks3D.py` (`Base`) |
-| 11 | End-effector position | `Position3D` |
-| 4 | End-effector configuration (`TP_node.py` only) | `Configuration3D` |
-| 3 | Joint position | `JointPosition` |
-| always | Joint limits of the 4 arm joints (highest priority) | `JointLimitTask` |
+1. joint limits of t1..t4 — set-based tasks, active only within 0.05 rad of a limit, released 0.09 rad away;
+2. the goal — suction-cup position, cup position and yaw, arm posture, or base heading;
 
-## Tested versions
+with the weighted damped least-squares recursion of
+[learn-manipulator-control](https://github.com/Rudip1/learn-manipulator-control) (chapters 7–9; pinned commit),
+weights 2 on the base inputs and 1 on the arm joints, damping 0.05, and every command scaled down uniformly to at
+most 0.3 rad/s or m/s. The mobile-manipulator Jacobian has a column per command; the turn-rate column includes the
+lever arm from the base to the cup, so turning the base swings the arm with it. The uArm's kinematics (its
+parallelogram keeps the cup level) are in [`swift_pro.hpp`](vehicle_manipulator_task_priority/include/vehicle_manipulator_task_priority/swift_pro.hpp).
 
-| Component | Version | What was checked |
-|---|---|---|
-| Ubuntu / ROS | 20.04 / Noetic (`ros:noetic-ros-base` image, Python 3.8) | `catkin_make` and `colcon build`, message import, `rosrun` of `Wheel_vel.py` |
-| Python (pure modules) | 3.10, 3.12 with NumPy | import of `utils.common_func`, `utils.tasks3D`, `Manipulator_task` |
-| Stonefish simulation | Ubuntu 20.04 + ROS Noetic (authors' setup) | not checked here: needs a GPU and the external packages listed below |
+**Mission.** [`config/pick_place.xml`](vehicle_manipulator_task_priority/config/pick_place.xml): drive the cup to
+within 25 cm of the rough box position, turn the base to face it, wait for ten fresh detections of marker 1, go 6 cm
+above the box top, touch it (4 mm tolerance), switch the suction on, lift, tuck the arm; then the same approach to the
+place stand (marker 2), set the box down, release, retreat, park. A failed approach is retried once.
 
-## Install
+**Detector.** Each marker is on a side face of an upright object; the detector moves from the marker pose (OpenCV
+`estimatePoseSingleMarkers`, 5 cm markers) horizontally to the object's axis and up to its top face, transforms it to
+the odometry frame at the image time, and publishes the median of the last 15 detections.
 
-The steps below were verified on ROS Noetic. They build the package and generate its messages.
+## Packages
+
+| package | contents |
+|---|---|
+| [`vehicle_manipulator_task_priority`](vehicle_manipulator_task_priority) | ROS-free core `vmtp_core` (uArm kinematics, mobile-manipulator model, controller), `controller_node`, `aruco_node`, `mission_node`, the behaviour tree, parameters, launch, `evaluate_run.py`, tests |
+| [`vehicle_manipulator_task_priority_interfaces`](vehicle_manipulator_task_priority_interfaces) | the `MoveTo` action |
+| [`vehicle_manipulator_task_priority_gazebo`](vehicle_manipulator_task_priority_gazebo) | robot (URDF/xacro), world with the box and the two stands, ArUco textures, ros_gz bridge, simulation launch |
+
+The robot is a Kobuki-size base (wheel radius 3.5 cm, track 23 cm) with a deck at 0.198 m carrying the uArm 5.1 cm
+ahead of the base centre, a forward camera (640 × 480, 60°) and a suction cup, modelled as a fixed joint that Gazebo
+creates and removes on demand. The uArm's parallelogram is a serial chain whose `wrist_level` joint keeps the cup
+level; the controller converts between the two joint sets.
+
+## Build
+
+Ubuntu 24.04, ROS 2 Jazzy, Gazebo Harmonic (`ros-jazzy-ros-gz`), BehaviorTree.CPP (`ros-jazzy-behaviortree-cpp`),
+OpenCV with the ArUco module (`libopencv-contrib-dev`).
 
 ```bash
-mkdir -p ~/catkin_ws/src && cd ~/catkin_ws/src
-git clone https://github.com/Rudip1/vehicle-manipulator-task-priority.git mobile_manipulator_tp
-cd ~/catkin_ws
-source /opt/ros/noetic/setup.bash
-catkin_make            # or: catkin build
-source devel/setup.bash
+mkdir -p ~/vmtp_ws/src && cd ~/vmtp_ws/src
+git clone https://github.com/Rudip1/vehicle-manipulator-task-priority.git
+cd ~/vmtp_ws
+rosdep install --from-paths src --ignore-src -y
+source /opt/ros/jazzy/setup.bash
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+source install/setup.bash
 ```
 
-Use a devel-space build (`catkin_make` or `catkin build`). The Python nodes run from the source tree because they import the `src/utils` package next to them.
+The first build downloads learn-manipulator-control (pinned commit). Offline, point CMake at a local checkout:
+`colcon build --cmake-args -DFETCHCONTENT_SOURCE_DIR_LEARN_MANIPULATOR_CONTROL=/path/to/learn-manipulator-control`.
 
-Runtime dependencies of the nodes. These are the authors' ROS Noetic packages; the apt names were not re-checked for this release:
+## Run
 
 ```bash
-sudo apt install ros-noetic-tf ros-noetic-tf2-ros ros-noetic-tf2-geometry-msgs \
-  ros-noetic-cv-bridge ros-noetic-py-trees ros-noetic-rviz ros-noetic-xacro \
-  ros-noetic-robot-state-publisher ros-noetic-controller-manager \
-  ros-noetic-rqt-robot-steering python3-numpy python3-scipy python3-matplotlib python3-opencv
+# Gazebo window, the controller, the detector and the mission
+ros2 launch vehicle_manipulator_task_priority pick_place.launch.py
+
+# Without the camera: fixed target positions (dead reckoning)
+ros2 launch vehicle_manipulator_task_priority pick_place.launch.py use_aruco:=false
+
+# The recorded experiment: headless, evaluated against ground truth (second terminal for the recorder)
+ros2 launch vehicle_manipulator_task_priority pick_place.launch.py gui:=false
+ros2 run vehicle_manipulator_task_priority evaluate_run.py --csv run.csv
+python3 src/vehicle-manipulator-task-priority/tools/plot_run.py run.csv run.png
 ```
 
-The simulation launch files also need these packages in the same workspace:
+Parameters are in [`config/controller.yaml`](vehicle_manipulator_task_priority/config/controller.yaml). Single goals
+can be sent by hand, e.g.
+`ros2 action send_goal /move_to vehicle_manipulator_task_priority_interfaces/action/MoveTo "{type: 0, position: {x: 0.6, y: 0.2, z: 0.25}}"`.
 
-- [Stonefish](https://github.com/patrykcieslak/stonefish) and [stonefish_ros](https://github.com/patrykcieslak/stonefish_ros)
-- `turtlebot_simulation`, `turtlebot_description` and `swiftpro_description`. They provide the scenario files (`turtlebot_hoi.scn`, `swiftpro_basic.scn`), the controller configs and the URDFs.
-  - TODO: add the source links for these three packages.
-
-### Smoke test (verified)
-
-This runs without the simulator:
+## Tests
 
 ```bash
-roscore &
-rosrun mobile_manipulator_tp Wheel_vel.py &
-rostopic pub -r 5 /cmd_vel geometry_msgs/Twist '{linear: {x: 0.1}, angular: {z: 0.5}}' &
-rostopic echo -n 1 /turtlebot/kobuki/commands/wheel_velocities
-# data: [4.535714285714286, 1.1785714285714286]   (right, left wheel speed in rad/s)
+colcon test --packages-select vehicle_manipulator_task_priority && colcon test-result --verbose
 ```
 
-## Run (simulation)
+No simulator needed: the uArm pose at a hand-worked configuration; its Jacobian and the mobile manipulator's
+(every frame, every command) against finite differences of the integrated motion; the robot description's serial
+chain against the uArm kinematics; and the controller on the kinematic model — posture goals move only the arm,
+heading goals only turn the base, near and far cup goals are reached inside the joint limits, and a whole pick-and-place
+sequence completes.
 
-These commands come from the launch files. They were **not** re-run for this release, because they need the external simulation packages and a display.
+## Limitations
 
-```bash
-# Arm only: task-priority control of the uArm Swift Pro
-roslaunch mobile_manipulator_tp manipulator_only.launch
+- Simulation only. The suction cup is an ideal fixed joint, the box always sticks.
+- The targets are located once, on arrival; a box pushed during the approach would be missed.
+- Odometry is the only base localisation: it is good over a few metres, and the markers correct it where it matters.
+- The base and the stands do not appear in the controller: nothing keeps the base from touching a stand if a goal
+  asked for it (the goals in the tree do not).
+- The original ROS 1 version (Python, TurtleBot 2 with the uArm in Stonefish, py_trees) is kept at tag
+  [`ros1-noetic`](https://github.com/Rudip1/vehicle-manipulator-task-priority/tree/ros1-noetic); its reports are in
+  [`docs/`](docs): the [project report](docs/vehicle_manipulator_task_priority_report.pdf) and the
+  [kinematics report](docs/report_kinematics_Pravin.pdf).
 
-# Full pick, transport and place, predefined goals, dead-reckoning localisation
-roslaunch mobile_manipulator_tp pick_place_dead_reckoning.launch
+## Citation
 
-# Full pick, transport and place, goal taken from ArUco marker detection
-roslaunch mobile_manipulator_tp pick_place_aruco.launch
-```
-
-When the node is stopped (Ctrl-C), the controller nodes plot the base and end-effector paths, the task error and the joint velocities with Matplotlib.
-
-## Results
-
-- `media/` holds the simulation recordings (GIFs above): the arm-only controller, pick and place with dead reckoning, and pick, transport and place with ArUco feedback.
-- [`docs/vehicle_manipulator_task_priority_report.pdf`](docs/vehicle_manipulator_task_priority_report.pdf) covers the system design, the kinematics, the task-priority formulation, the behaviour trees, and trajectory, error and joint-velocity plots for each experiment.
-- [`docs/report_kinematics_Pravin.pdf`](docs/report_kinematics_Pravin.pdf) derives the forward kinematics and Jacobian of the Swift Pro on the TurtleBot base.
-
-## Repository layout
-
-```
-.
-├── CMakeLists.txt, package.xml   catkin package mobile_manipulator_tp (message generation)
-├── msg/CustomPoseStamped.msg     goal pose + task id sent from the behaviour tree to the controller
-├── srv/Goalreached.srv           service definition (generated, not used by the nodes)
-├── launch/                       simulation, dead-reckoning, ArUco and arm-only launch files
-├── config/                       RViz configurations
-├── src/
-│   ├── TP_node.py                task-priority controller, dead-reckoning variant
-│   ├── base_tp_simulation.py     task-priority controller, ArUco variant
-│   ├── BT_node.py                behaviour tree with predefined goals
-│   ├── behaviour_tree_simu.py    behaviour tree driven by ArUco detections
-│   ├── aruco_node_simulation.py  ArUco marker detection and pose in world_ned
-│   ├── Wheel_vel.py              Twist to Kobuki wheel velocities
-│   ├── utils/common_func.py      DH transforms, Jacobians, (weighted) DLS
-│   ├── utils/tasks3D.py          task classes for the mobile manipulator
-│   └── manipulator/              arm-only controller, kinematics node and tasks
-├── media/                        demo GIFs
-├── docs/                         project reports (PDF)
-└── .github/workflows/ci.yml      build and import checks
-```
-
-## Acknowledgements
-
-This project was developed jointly by **Pravin Oli** and **Gebrecherkos G.**
-
-It builds on the [Stonefish](https://github.com/patrykcieslak/stonefish) simulator and its ROS bridge by Patryk Cieślak, and on the [py_trees](https://github.com/splintered-reality/py_trees) behaviour-tree library.
+If you use this work, please cite it using [`CITATION.cff`](CITATION.cff).
 
 ## Licence
 
-Released under the [Apache License 2.0](LICENSE). Citation metadata is in [`CITATION.cff`](CITATION.cff).
+Code released under the [Apache License 2.0](LICENSE). The robot meshes come from other projects; their sources and
+licences are listed in
+[`meshes/ATTRIBUTION.md`](vehicle_manipulator_task_priority_gazebo/meshes/ATTRIBUTION.md).
+
+## Acknowledgements
+
+- **Gebrecherkos Gebrezgabhier** and **Pravin Oli** designed and implemented the original ROS 1 system together.
+- Kobuki meshes by Yujin Robot; uArm Swift Pro meshes by UFACTORY.
+- Built on [ROS 2](https://www.ros.org/), [Gazebo](https://gazebosim.org/),
+  [BehaviorTree.CPP](https://www.behaviortree.dev/), [OpenCV](https://opencv.org/) and
+  [learn-manipulator-control](https://github.com/Rudip1/learn-manipulator-control).
