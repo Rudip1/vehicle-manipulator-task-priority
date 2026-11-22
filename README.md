@@ -160,7 +160,6 @@ licences are listed in
 
 ## Acknowledgements
 
-- **Gebrecherkos Gebrezgabhier** and **Pravin Oli** designed and implemented the original ROS 1 system together.
 - Kobuki meshes by Yujin Robot; uArm Swift Pro meshes by UFACTORY.
 - Built on [ROS 2](https://www.ros.org/), [Gazebo](https://gazebosim.org/),
   [BehaviorTree.CPP](https://www.behaviortree.dev/), [OpenCV](https://opencv.org/) and

@@ -8,8 +8,6 @@ repository-code: "https://github.com/Rudip1/vehicle-manipulator-task-priority"
 authors:
   - given-names: Pravin
     family-names: Oli
-  - given-names: Gebrecherkos
-    family-names: Gebrezgabhier
 keywords:
   - mobile manipulation
   - task-priority control
